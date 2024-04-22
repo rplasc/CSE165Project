@@ -20,20 +20,33 @@ public:
         imageLabel->setScaledContents(true);
         layout->addWidget(imageLabel);
 
-        brightnessSlider = createSlider(-100, 100, 0, tr("Brightness"), this);
+        brightnessLabel = new QLabel(tr("Brightness"), this);
+        brightnessSlider = createSlider(-100, 100, 0, this);
+        brightnessLabel->hide();
+        brightnessSlider->hide();
         connect(brightnessSlider, &QSlider::valueChanged, this, &Display::updateImage);
 
-        saturationSlider = createSlider(-100, 100, 0, tr("Saturation"), this);
+        saturationLabel = new QLabel(tr("Saturation"), this);
+        saturationSlider = createSlider(-100, 100, 0, this);
+        saturationLabel->hide();
+        saturationSlider->hide();
         connect(saturationSlider, &QSlider::valueChanged, this, &Display::updateImage);
 
-        hueSlider = createSlider(-100, 100, 0, tr("Hue"), this);
+        hueLabel = new QLabel(tr("Hue"), this);
+        hueSlider = createSlider(-100, 100, 0, this);
+        hueLabel->hide();
+        hueSlider->hide();
         connect(hueSlider, &QSlider::valueChanged, this, &Display::updateImage);
 
         saveButton = new QPushButton(tr("Save"), this);
+        saveButton->hide();
         connect(saveButton, &QPushButton::clicked, this, &Display::saveImage);
 
+        layout->addWidget(brightnessLabel);
         layout->addWidget(brightnessSlider);
+        layout->addWidget(saturationLabel);
         layout->addWidget(saturationSlider);
+        layout->addWidget(hueLabel);
         layout->addWidget(hueSlider);
         layout->addWidget(saveButton);
     }
@@ -47,6 +60,29 @@ public:
         }
 
         updateImage();
+        brightnessLabel->show();
+        brightnessSlider->show();
+        saturationLabel->show();
+        saturationSlider->show();
+        hueLabel->show();
+        hueSlider->show();
+        saveButton->show();
+    }
+    void closeImage()
+    {
+        originalImage = QImage();
+        adjustedImage = QImage();
+        imageLabel->clear();
+        brightnessSlider->setValue(0);
+        saturationSlider->setValue(0);
+        hueSlider->setValue(0);
+        brightnessLabel->hide();
+        brightnessSlider->hide();
+        saturationLabel->hide();
+        saturationSlider->hide();
+        hueLabel->hide();
+        hueSlider->hide();
+        saveButton->hide();
     }
 
 protected:
@@ -58,6 +94,9 @@ protected:
 
 private:
     QLabel *imageLabel;
+    QLabel *brightnessLabel;
+    QLabel *saturationLabel;
+    QLabel *hueLabel;
     QSlider *brightnessSlider;
     QSlider *saturationSlider;
     QSlider *hueSlider;
@@ -65,19 +104,11 @@ private:
     QImage originalImage;
     QImage adjustedImage;
 
-    QSlider *createSlider(int minValue, int maxValue, int defaultValue, const QString &label, QWidget *parent)
+    QSlider *createSlider(int minValue, int maxValue, int defaultValue, QWidget *parent)
     {
         QSlider *slider = new QSlider(Qt::Horizontal, parent);
         slider->setRange(minValue, maxValue);
         slider->setValue(defaultValue);
-
-        QLabel *sliderLabel = new QLabel(label, parent);
-
-        QHBoxLayout *layout = new QHBoxLayout();
-        layout->addWidget(sliderLabel);
-        layout->addWidget(slider);
-
-        parent->layout()->addItem(layout);
 
         return slider;
     }
@@ -142,10 +173,16 @@ public:
     {
         widget = new Display(this);
         setCentralWidget(widget);
+        setWindowTitle("Image Processor");
 
         QAction *openAction = new QAction(tr("&Open..."), this);
         connect(openAction, &QAction::triggered, this, &MainWindow::open);
         menuBar()->addAction(openAction);
+
+        closeAction = new QAction(tr("Close Image"), this);
+        connect(closeAction, &QAction::triggered, this, &MainWindow::closeImage);
+        closeAction->setDisabled(true);
+        menuBar()->addAction(closeAction);
     }
 
 private slots:
@@ -154,12 +191,19 @@ private slots:
         QString fileName = QFileDialog::getOpenFileName(this, tr("Open Image"), QString(), tr("Images (*.png *.jpg *.bmp)"));
         if (!fileName.isEmpty()) {
             widget->loadImage(fileName);
-            setWindowTitle(fileName);
+            closeAction->setEnabled(true);
         }
+    }
+
+    void closeImage()
+    {
+        widget->closeImage();
+        closeAction->setDisabled(true);
     }
 
 private:
     Display *widget;
+    QAction *closeAction;
 };
 
 int main(int argc, char *argv[])
