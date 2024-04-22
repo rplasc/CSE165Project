@@ -1,95 +1,137 @@
 #include <QtWidgets>
 #include <QFileDialog>
 #include <QImageReader>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QSlider>
+#include <QPushButton>
 
-class CropDialog : public QDialog
+class Display : public QWidget
 {
 public:
-    CropDialog(QWidget *parent = nullptr)
-        : QDialog(parent)
+    Display(QWidget *parent = nullptr)
+        : QWidget(parent)
     {
-        setWindowTitle("Crop Image");
+        QVBoxLayout *layout = new QVBoxLayout(this);
 
-        QLabel *label = new QLabel("Select crop area:", this);
-        label->setAlignment(Qt::AlignCenter);
+        imageLabel = new QLabel(this);
+        imageLabel->setAlignment(Qt::AlignCenter);
+        imageLabel->setScaledContents(true);
+        layout->addWidget(imageLabel);
 
-        xSpinBox = new QSpinBox(this);
-        xSpinBox->setMinimum(0);
+        brightnessSlider = createSlider(-100, 100, 0, tr("Brightness"), this);
+        connect(brightnessSlider, &QSlider::valueChanged, this, &Display::updateImage);
 
-        ySpinBox = new QSpinBox(this);
-        ySpinBox->setMinimum(0);
+        saturationSlider = createSlider(-100, 100, 0, tr("Saturation"), this);
+        connect(saturationSlider, &QSlider::valueChanged, this, &Display::updateImage);
 
-        widthSpinBox = new QSpinBox(this);
-        widthSpinBox->setMinimum(1);
+        warmthSlider = createSlider(-100, 100, 0, tr("Warmth"), this);
+        connect(warmthSlider, &QSlider::valueChanged, this, &Display::updateImage);
 
-        heightSpinBox = new QSpinBox(this);
-        heightSpinBox->setMinimum(1);
+        saveButton = new QPushButton(tr("Save"), this);
+        connect(saveButton, &QPushButton::clicked, this, &Display::saveImage);
 
-        QPushButton *okButton = new QPushButton("OK", this);
-        connect(okButton, &QPushButton::clicked, this, &CropDialog::accept);
-
-        QGridLayout *layout = new QGridLayout(this);
-        layout->addWidget(label, 0, 0, 1, 2);
-        layout->addWidget(new QLabel("X:"), 1, 0);
-        layout->addWidget(xSpinBox, 1, 1);
-        layout->addWidget(new QLabel("Y:"), 2, 0);
-        layout->addWidget(ySpinBox, 2, 1);
-        layout->addWidget(new QLabel("Width:"), 3, 0);
-        layout->addWidget(widthSpinBox, 3, 1);
-        layout->addWidget(new QLabel("Height:"), 4, 0);
-        layout->addWidget(heightSpinBox, 4, 1);
-        layout->addWidget(okButton, 5, 0, 1, 2);
-
-        setLayout(layout);
-    }
-
-    QRect getCropRect() const
-    {
-        int x = xSpinBox->value();
-        int y = ySpinBox->value();
-        int width = widthSpinBox->value();
-        int height = heightSpinBox->value();
-
-        return QRect(x, y, width, height);
-    }
-
-private:
-    QSpinBox *xSpinBox;
-    QSpinBox *ySpinBox;
-    QSpinBox *widthSpinBox;
-    QSpinBox *heightSpinBox;
-};
-
-class Widget : public QLabel
-{
-public:
-    Widget(QWidget *parent = nullptr)
-        : QLabel(parent)
-    {
-        setAlignment(Qt::AlignCenter);
-        setScaledContents(true);
+        layout->addWidget(brightnessSlider);
+        layout->addWidget(saturationSlider);
+        layout->addWidget(warmthSlider);
+        layout->addWidget(saveButton);
     }
 
     void loadImage(const QString &fileName)
     {
-        image.load(fileName);
-        if (image.isNull()) {
-            setText("Failed to load image");
+        originalImage.load(fileName);
+        if (originalImage.isNull()) {
+            imageLabel->setText("Failed to load image");
             return;
         }
 
-        setPixmap(QPixmap::fromImage(image));
+        updateImage();
     }
 
-    void cropImage(const QRect &rect)
+protected:
+    void resizeEvent(QResizeEvent *event) override
     {
-        QPixmap cropped = pixmap().copy(rect);
-        setPixmap(cropped.scaled(size(), Qt::KeepAspectRatio));
-        image = cropped.toImage();
+        QWidget::resizeEvent(event);
+        updateImage();
     }
 
 private:
-    QImage image;
+    QLabel *imageLabel;
+    QSlider *brightnessSlider;
+    QSlider *saturationSlider;
+    QSlider *warmthSlider;
+    QPushButton *saveButton;
+    QImage originalImage;
+    QImage adjustedImage;
+
+    QSlider *createSlider(int minValue, int maxValue, int defaultValue, const QString &label, QWidget *parent)
+    {
+        QSlider *slider = new QSlider(Qt::Horizontal, parent);
+        slider->setRange(minValue, maxValue);
+        slider->setValue(defaultValue);
+
+        QLabel *sliderLabel = new QLabel(label, parent);
+
+        QHBoxLayout *layout = new QHBoxLayout();
+        layout->addWidget(sliderLabel);
+        layout->addWidget(slider);
+
+        parent->layout()->addItem(layout);
+
+        return slider;
+    }
+
+    void updateImage()
+    {
+        adjustedImage = originalImage.convertToFormat(QImage::Format_ARGB32);
+
+        qreal brightness = qBound(-1.0, brightnessSlider->value() / 100.0, 1.0);
+        qreal saturation = qBound(-1.0, saturationSlider->value() / 100.0, 1.0);
+        qreal warmth = warmthSlider->value() / 100.0; // Use the full range of the slider
+
+        for (int y = 0; y < adjustedImage.height(); ++y) {
+            QRgb *scanLine = reinterpret_cast<QRgb *>(adjustedImage.scanLine(y));
+            for (int x = 0; x < adjustedImage.width(); ++x) {
+                QColor color = QColor::fromRgb(scanLine[x]);
+                int h, s, v;
+                color.getHsv(&h, &s, &v);
+
+                // Adjust brightness
+                v = qMax(0, qMin(v + static_cast<int>(255 * brightness), 255));
+
+                // Adjust saturation
+                s = qMax(0, qMin(s + static_cast<int>(255 * saturation), 255));
+
+                // Adjust warmth
+                qreal hueShift = warmth * 60.0; // Map warmth to a hue shift in degrees
+                h = normalizeHue(h + static_cast<int>(hueShift));
+
+                color.setHsv(h, s, v);
+                scanLine[x] = color.rgb();
+            }
+        }
+
+        imageLabel->setPixmap(QPixmap::fromImage(adjustedImage));
+    }
+
+    int normalizeHue(int hue)
+    {
+        // Ensure hue value is within the range [0, 359]
+        if (hue < 0)
+            hue += 360;
+        else if (hue >= 360)
+            hue -= 360;
+        return hue;
+    }
+
+    void saveImage()
+    {
+        QString fileName = QFileDialog::getSaveFileName(this, tr("Save Image"), QString(), tr("Images (*.png *.jpg *.bmp)"));
+        if (!fileName.isEmpty()) {
+            adjustedImage.save(fileName);
+        }
+    }
 };
 
 class MainWindow : public QMainWindow
@@ -98,16 +140,12 @@ public:
     MainWindow(QWidget *parent = nullptr)
         : QMainWindow(parent)
     {
-        widget = new Widget(this);
+        widget = new Display(this);
         setCentralWidget(widget);
 
         QAction *openAction = new QAction(tr("&Open..."), this);
         connect(openAction, &QAction::triggered, this, &MainWindow::open);
         menuBar()->addAction(openAction);
-
-        QAction *cropAction = new QAction(tr("&Crop"), this);
-        connect(cropAction, &QAction::triggered, this, &MainWindow::crop);
-        menuBar()->addAction(cropAction);
     }
 
 private slots:
@@ -120,17 +158,8 @@ private slots:
         }
     }
 
-    void crop()
-    {
-        CropDialog dialog(this);
-        if (dialog.exec() == QDialog::Accepted) {
-            QRect cropRect = dialog.getCropRect();
-            widget->cropImage(cropRect);
-        }
-    }
-
 private:
-    Widget *widget;
+    Display *widget;
 };
 
 int main(int argc, char *argv[])
