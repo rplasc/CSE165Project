@@ -7,6 +7,15 @@
 #include <QSlider>
 #include <QPushButton>
 
+#include <QtWidgets>
+#include <QFileDialog>
+#include <QImageReader>
+#include <QFormLayout>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QSlider>
+#include <QPushButton>
+
 class Display : public QWidget
 {
 public:
@@ -14,6 +23,10 @@ public:
         : QWidget(parent)
     {
         QVBoxLayout *layout = new QVBoxLayout(this);
+
+        messageLabel = new QLabel(tr("Please select an image."), this);
+        messageLabel->setAlignment(Qt::AlignCenter);
+        layout->addWidget(messageLabel);
 
         imageLabel = new QLabel(this);
         imageLabel->setAlignment(Qt::AlignCenter);
@@ -55,11 +68,20 @@ public:
     {
         originalImage.load(fileName);
         if (originalImage.isNull()) {
-            imageLabel->setText("Failed to load image");
+            imageLabel->clear();
+            messageLabel->setText("Failed to load image");
+            brightnessLabel->hide();
+            brightnessSlider->hide();
+            saturationLabel->hide();
+            saturationSlider->hide();
+            hueLabel->hide();
+            hueSlider->hide();
+            saveButton->hide();
             return;
         }
 
-        updateImage();
+        messageLabel->hide();
+        imageLabel->show();
         brightnessLabel->show();
         brightnessSlider->show();
         saturationLabel->show();
@@ -67,6 +89,7 @@ public:
         hueLabel->show();
         hueSlider->show();
         saveButton->show();
+        updateImage();
     }
     void closeImage()
     {
@@ -76,6 +99,8 @@ public:
         brightnessSlider->setValue(0);
         saturationSlider->setValue(0);
         hueSlider->setValue(0);
+        messageLabel->show();
+        imageLabel->hide();
         brightnessLabel->hide();
         brightnessSlider->hide();
         saturationLabel->hide();
@@ -93,6 +118,7 @@ protected:
     }
 
 private:
+    QLabel *messageLabel;
     QLabel *imageLabel;
     QLabel *brightnessLabel;
     QLabel *saturationLabel;
