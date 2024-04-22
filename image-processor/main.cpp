@@ -26,15 +26,15 @@ public:
         saturationSlider = createSlider(-100, 100, 0, tr("Saturation"), this);
         connect(saturationSlider, &QSlider::valueChanged, this, &Display::updateImage);
 
-        warmthSlider = createSlider(-100, 100, 0, tr("Warmth"), this);
-        connect(warmthSlider, &QSlider::valueChanged, this, &Display::updateImage);
+        hueSlider = createSlider(-100, 100, 0, tr("Hue"), this);
+        connect(hueSlider, &QSlider::valueChanged, this, &Display::updateImage);
 
         saveButton = new QPushButton(tr("Save"), this);
         connect(saveButton, &QPushButton::clicked, this, &Display::saveImage);
 
         layout->addWidget(brightnessSlider);
         layout->addWidget(saturationSlider);
-        layout->addWidget(warmthSlider);
+        layout->addWidget(hueSlider);
         layout->addWidget(saveButton);
     }
 
@@ -60,7 +60,7 @@ private:
     QLabel *imageLabel;
     QSlider *brightnessSlider;
     QSlider *saturationSlider;
-    QSlider *warmthSlider;
+    QSlider *hueSlider;
     QPushButton *saveButton;
     QImage originalImage;
     QImage adjustedImage;
@@ -88,7 +88,7 @@ private:
 
         qreal brightness = qBound(-1.0, brightnessSlider->value() / 100.0, 1.0);
         qreal saturation = qBound(-1.0, saturationSlider->value() / 100.0, 1.0);
-        qreal warmth = warmthSlider->value() / 100.0; // Use the full range of the slider
+        qreal hue = hueSlider->value() / 100.0; // Use the full range of the slider
 
         for (int y = 0; y < adjustedImage.height(); ++y) {
             QRgb *scanLine = reinterpret_cast<QRgb *>(adjustedImage.scanLine(y));
@@ -103,8 +103,8 @@ private:
                 // Adjust saturation
                 s = qMax(0, qMin(s + static_cast<int>(255 * saturation), 255));
 
-                // Adjust warmth
-                qreal hueShift = warmth * 60.0; // Map warmth to a hue shift in degrees
+                // Adjust hue
+                qreal hueShift = hue * 60.0; // Map warmth to a hue shift in degrees
                 h = normalizeHue(h + static_cast<int>(hueShift));
 
                 color.setHsv(h, s, v);
