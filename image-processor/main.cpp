@@ -20,6 +20,14 @@ public:
     virtual void saveImage(const QString &fileName) = 0;
 };
 
+enum class EditState
+{
+    None,
+    Brightness,
+    Saturation,
+    Hue
+};
+
 class ImageAdjuster : public QWidget, public ImageProcessor
 {
 public:
@@ -55,11 +63,6 @@ public:
         hueSlider->hide();
         connect(hueSlider, &QSlider::valueChanged, this, &ImageAdjuster::adjustHue);
 
-        resetButton = new QPushButton(tr("Reset"), this);
-        connect(resetButton, &QPushButton::clicked, this, &ImageAdjuster::resetSliders);
-        layout->addWidget(resetButton);
-        resetButton->hide();
-
         layout->addWidget(brightnessLabel);
         layout->addWidget(brightnessSlider);
         layout->addWidget(saturationLabel);
@@ -81,13 +84,7 @@ public:
         adjustedImage = originalImage.copy(); // Make a copy of the original image
         messageLabel->hide();
         imageLabel->show();
-        brightnessLabel->show();
-        brightnessSlider->show();
-        saturationLabel->show();
-        saturationSlider->show();
-        hueLabel->show();
-        hueSlider->show();
-        resetButton->show();
+        currentState = EditState::None;
         updateImage();
     }
 
@@ -107,7 +104,6 @@ public:
         saturationSlider->hide();
         hueLabel->hide();
         hueSlider->hide();
-        resetButton->hide();
     }
 
     void adjustBrightness(int value) override
@@ -137,7 +133,7 @@ public:
 
     void adjustSaturation(int value) override
     {
-        QImage tempImage = originalImage.copy(); // Make a copy of the original image
+        tempImage = adjustedImage.copy(); // Make a copy of the original image
 
         qreal saturationFactor = value / 100.0; // Normalize to range [-1, 1]
 
@@ -201,6 +197,57 @@ public:
         adjustHue(0);
         adjustedImage = originalImage.copy();
         updateImage();
+
+        brightnessLabel->hide();
+        brightnessSlider->hide();
+        saturationLabel->hide();
+        saturationSlider->hide();
+        hueLabel->hide();
+        hueSlider->hide();
+    }
+
+    void toggleSlider(EditState state)
+    {
+        // Hide all sliders and labels if they are already visible
+        if (brightnessLabel->isVisible())
+        {
+            brightnessLabel->hide();
+            brightnessSlider->hide();
+        }
+        if (saturationLabel->isVisible())
+        {
+            saturationLabel->hide();
+            saturationSlider->hide();
+        }
+        if (hueLabel->isVisible())
+        {
+            hueLabel->hide();
+            hueSlider->hide();
+        }
+
+        if(currentState != state)
+        {
+            switch (state)
+            {
+            case EditState::Brightness:
+                brightnessLabel->show();
+                brightnessSlider->show();
+                break;
+            case EditState::Saturation:
+                saturationLabel->show();
+                saturationSlider->show();
+                break;
+            case EditState::Hue:
+                hueLabel->show();
+                hueSlider->show();
+                break;
+            case EditState::None:
+                break;
+            }
+
+            currentState = state;
+        }
+        else currentState = EditState::None;
     }
 
 protected:
@@ -231,7 +278,8 @@ private:
     QSlider *hueSlider;
     QImage originalImage;
     QImage adjustedImage;
-    QPushButton *resetButton;
+    QImage tempImage;
+    EditState currentState;
 
     QSlider *createSlider(int minValue, int maxValue, int defaultValue, QWidget *parent)
     {
@@ -288,7 +336,6 @@ public:
         setCentralWidget(adjuster);
         setWindowTitle("Image Processor");
 
-        // Set the background color of the main window to dark gray
         QPalette palette = this->palette();
         palette.setColor(QPalette::Window, QColor(Qt::darkGray));
         this->setPalette(palette);
@@ -304,10 +351,30 @@ public:
         closeAction->setDisabled(true);
         fileMenu->addAction(closeAction);
 
-        saveAction = new QAction(tr("Save Image"), this);
+        saveAction = new QAction(tr("Save as..."), this);
         connect(saveAction, &QAction::triggered, this, &MainWindow::saveImage);
         saveAction->setDisabled(true);
         fileMenu->addAction(saveAction);
+
+        editMenu = menuBar()->addMenu(tr("&Edit..."));
+        editMenu->setEnabled(false);
+
+        brightnessAction = new QAction(tr("&Brightness"), this);
+        connect(brightnessAction, &QAction::triggered, this, &::MainWindow::toggleBrightness);
+        editMenu->addAction(brightnessAction);
+
+        saturationAction = new QAction(tr("&Saturation"), this);
+        connect(saturationAction, &QAction::triggered, this, &::MainWindow::toggleSaturation);
+        editMenu->addAction(saturationAction);
+
+        hueAction = new QAction(tr("&Hue"), this);
+        connect(hueAction, &QAction::triggered, this, &MainWindow::toggleHue);
+        editMenu->addAction(hueAction);
+
+        resetAction = new QAction(tr("&Reset"), this);
+        connect(resetAction, &QAction::triggered, this, &MainWindow::reset);
+        editMenu->addAction(resetAction);
+
     }
 
 private slots:
@@ -318,6 +385,7 @@ private slots:
             adjuster->loadImage(fileName);
             closeAction->setEnabled(true);
             saveAction->setEnabled(true);
+            editMenu->setEnabled(true);
         }
     }
 
@@ -326,6 +394,7 @@ private slots:
         adjuster->closeImage();
         closeAction->setDisabled(true);
         saveAction->setDisabled(true);
+        editMenu->setEnabled(false);
     }
 
     void saveImage()
@@ -336,10 +405,35 @@ private slots:
         }
     }
 
+    void reset()
+    {
+        adjuster->resetSliders();
+    }
+
+    void toggleBrightness()
+    {
+        adjuster->toggleSlider(EditState::Brightness);
+    }
+
+    void toggleSaturation()
+    {
+        adjuster->toggleSlider(EditState::Saturation);
+    }
+
+    void toggleHue()
+    {
+        adjuster->toggleSlider(EditState::Hue);
+    }
+
 private:
     ImageAdjuster *adjuster;
     QAction *closeAction;
     QAction *saveAction;
+    QMenu *editMenu;
+    QAction *brightnessAction;
+    QAction *saturationAction;
+    QAction *hueAction;
+    QAction *resetAction;
 };
 
 int main(int argc, char *argv[])
