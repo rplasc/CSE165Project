@@ -63,12 +63,18 @@ public:
         hueSlider->hide();
         connect(hueSlider, &QSlider::valueChanged, this, &ImageAdjuster::adjustHue);
 
+        applyButton = new QPushButton(tr("Apply"), this);
+        applyButton->hide();
+        connect(applyButton, &QPushButton::clicked, this, &ImageAdjuster::applyAdjustments);
+
+
         layout->addWidget(brightnessLabel);
         layout->addWidget(brightnessSlider);
         layout->addWidget(saturationLabel);
         layout->addWidget(saturationSlider);
         layout->addWidget(hueLabel);
         layout->addWidget(hueSlider);
+        layout->addWidget(applyButton);
     }
 
     void loadImage(const QString &fileName) override
@@ -82,6 +88,7 @@ public:
 
         originalImage = loadedImage;
         adjustedImage = originalImage.copy(); // Make a copy of the original image
+        tempImage = adjustedImage;
         messageLabel->hide();
         imageLabel->show();
         currentState = EditState::None;
@@ -104,11 +111,14 @@ public:
         saturationSlider->hide();
         hueLabel->hide();
         hueSlider->hide();
+
+        currentState = EditState::None;
+        toggleApplyButton();
     }
 
     void adjustBrightness(int value) override
     {
-        QImage tempImage = originalImage.copy(); // Make a copy of the original image
+        tempImage = adjustedImage.copy(); // Make a copy of the original image
 
         qreal brightnessFactor = value / 100.0; // Normalize to range [-1, 1]
 
@@ -127,7 +137,6 @@ public:
             }
         }
 
-        adjustedImage = tempImage; // Assign the adjusted image to the temporary image
         updateImage();
     }
 
@@ -152,13 +161,12 @@ public:
             }
         }
 
-        adjustedImage = tempImage; // Assign the adjusted image to the temporary image
         updateImage();
     }
 
     void adjustHue(int value) override
     {
-        QImage tempImage = originalImage.copy(); // Make a copy of the original image
+        tempImage = adjustedImage.copy(); // Make a copy of the original image
 
         qreal hueFactor = value / 100.0; // Normalize to range [-1, 1]
 
@@ -178,7 +186,6 @@ public:
             }
         }
 
-        adjustedImage = tempImage; // Assign the adjusted image to the temporary image
         updateImage();
     }
 
@@ -187,7 +194,7 @@ public:
         adjustedImage.save(fileName);
     }
 
-    void resetSliders()
+    void resetState()
     {
         brightnessSlider->setValue(0);
         saturationSlider->setValue(0);
@@ -196,6 +203,7 @@ public:
         adjustSaturation(0);
         adjustHue(0);
         adjustedImage = originalImage.copy();
+        tempImage = adjustedImage;
         updateImage();
 
         brightnessLabel->hide();
@@ -204,6 +212,8 @@ public:
         saturationSlider->hide();
         hueLabel->hide();
         hueSlider->hide();
+        currentState = EditState::None;
+        toggleApplyButton();
     }
 
     void toggleSlider(EditState state)
@@ -248,6 +258,31 @@ public:
             currentState = state;
         }
         else currentState = EditState::None;
+
+        toggleApplyButton();
+        tempImage = adjustedImage;
+        updateImage();
+    }
+
+    void toggleApplyButton()
+    {
+        if(currentState !=EditState::None)
+            applyButton->show();
+        else
+            applyButton->hide();
+    }
+
+    void applyAdjustments()
+    {
+        adjustedImage = tempImage;
+        updateImage();
+
+        brightnessSlider->setValue(0);
+        saturationSlider->setValue(0);
+        hueSlider->setValue(0);
+        adjustBrightness(0);
+        adjustSaturation(0);
+        adjustHue(0);
     }
 
 protected:
@@ -280,6 +315,7 @@ private:
     QImage adjustedImage;
     QImage tempImage;
     EditState currentState;
+    QPushButton *applyButton;
 
     QSlider *createSlider(int minValue, int maxValue, int defaultValue, QWidget *parent)
     {
@@ -292,21 +328,21 @@ private:
 
     void updateImage()
     {
-        if (adjustedImage.isNull())
+        if (tempImage.isNull())
             return;
 
         // Get the size of the available space for the image
         QSize availableSize = imageLabel->size();
 
         // Calculate the scaled size while maintaining the aspect ratio
-        QSize scaledSize = adjustedImage.size().scaled(availableSize, Qt::KeepAspectRatio);
+        QSize scaledSize = tempImage.size().scaled(availableSize, Qt::KeepAspectRatio);
 
         // Calculate the position to center the image in the available space
         QPoint position = QPoint((availableSize.width() - scaledSize.width()) / 2,
                                  (availableSize.height() - scaledSize.height()) / 2);
 
         // Create a QPixmap from the adjustedImage and scale it to the calculated size
-        QPixmap pixmap = QPixmap::fromImage(adjustedImage).scaled(scaledSize, Qt::KeepAspectRatio);
+        QPixmap pixmap = QPixmap::fromImage(tempImage).scaled(scaledSize, Qt::KeepAspectRatio);
 
         // Create a new pixmap with the same size as the available space and fill it with black
         QPixmap blackPixmap(availableSize);
@@ -407,7 +443,7 @@ private slots:
 
     void reset()
     {
-        adjuster->resetSliders();
+        adjuster->resetState();
     }
 
     void toggleBrightness()
