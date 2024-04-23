@@ -112,11 +112,13 @@ public:
 
     void adjustBrightness(int value) override
     {
+        QImage tempImage = originalImage.copy(); // Make a copy of the original image
+
         qreal brightnessFactor = value / 100.0; // Normalize to range [-1, 1]
 
-        for (int y = 0; y < adjustedImage.height(); ++y) {
-            QRgb *scanLine = reinterpret_cast<QRgb *>(adjustedImage.scanLine(y));
-            for (int x = 0; x < adjustedImage.width(); ++x) {
+        for (int y = 0; y < tempImage.height(); ++y) {
+            QRgb *scanLine = reinterpret_cast<QRgb *>(tempImage.scanLine(y));
+            for (int x = 0; x < tempImage.width(); ++x) {
                 QColor color = QColor::fromRgb(scanLine[x]);
                 int h, s, v;
                 color.getHsv(&h, &s, &v);
@@ -129,16 +131,19 @@ public:
             }
         }
 
+        adjustedImage = tempImage; // Assign the adjusted image to the temporary image
         updateImage();
     }
 
     void adjustSaturation(int value) override
     {
+        QImage tempImage = originalImage.copy(); // Make a copy of the original image
+
         qreal saturationFactor = value / 100.0; // Normalize to range [-1, 1]
 
-        for (int y = 0; y < adjustedImage.height(); ++y) {
-            QRgb *scanLine = reinterpret_cast<QRgb *>(adjustedImage.scanLine(y));
-            for (int x = 0; x < adjustedImage.width(); ++x) {
+        for (int y = 0; y < tempImage.height(); ++y) {
+            QRgb *scanLine = reinterpret_cast<QRgb *>(tempImage.scanLine(y));
+            for (int x = 0; x < tempImage.width(); ++x) {
                 QColor color = QColor::fromRgb(scanLine[x]);
                 int h, s, v;
                 color.getHsv(&h, &s, &v);
@@ -151,16 +156,19 @@ public:
             }
         }
 
+        adjustedImage = tempImage; // Assign the adjusted image to the temporary image
         updateImage();
     }
 
     void adjustHue(int value) override
     {
+        QImage tempImage = originalImage.copy(); // Make a copy of the original image
+
         qreal hueFactor = value / 100.0; // Normalize to range [-1, 1]
 
-        for (int y = 0; y < adjustedImage.height(); ++y) {
-            QRgb *scanLine = reinterpret_cast<QRgb *>(adjustedImage.scanLine(y));
-            for (int x = 0; x < adjustedImage.width(); ++x) {
+        for (int y = 0; y < tempImage.height(); ++y) {
+            QRgb *scanLine = reinterpret_cast<QRgb *>(tempImage.scanLine(y));
+            for (int x = 0; x < tempImage.width(); ++x) {
                 QColor color = QColor::fromRgb(scanLine[x]);
                 int h, s, v;
                 color.getHsv(&h, &s, &v);
@@ -174,6 +182,7 @@ public:
             }
         }
 
+        adjustedImage = tempImage; // Assign the adjusted image to the temporary image
         updateImage();
     }
 
@@ -284,19 +293,21 @@ public:
         palette.setColor(QPalette::Window, QColor(Qt::darkGray));
         this->setPalette(palette);
 
+        QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
+
         QAction *openAction = new QAction(tr("&Open..."), this);
         connect(openAction, &QAction::triggered, this, &MainWindow::open);
-        menuBar()->addAction(openAction);
+        fileMenu->addAction(openAction);
 
         closeAction = new QAction(tr("Close Image"), this);
         connect(closeAction, &QAction::triggered, this, &MainWindow::closeImage);
         closeAction->setDisabled(true);
-        menuBar()->addAction(closeAction);
+        fileMenu->addAction(closeAction);
 
         saveAction = new QAction(tr("Save Image"), this);
         connect(saveAction, &QAction::triggered, this, &MainWindow::saveImage);
         saveAction->setDisabled(true);
-        menuBar()->addAction(saveAction);
+        fileMenu->addAction(saveAction);
     }
 
 private slots:
