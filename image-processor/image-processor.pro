@@ -12,7 +12,3 @@ HEADERS += \
     ImageAdjuster.h \
     ImageProcessor.h \
     MainWindow.h
-
-FORMS +=
-
-CONFIG += c++17

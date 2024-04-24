@@ -54,14 +54,13 @@ void ImageAdjuster::loadImage(const QString &fileName)
 {
     QImage loadedImage;
     if (!loadedImage.load(fileName)) {
-        // Display error message
         QMessageBox::critical(this, tr("Error"), tr("Failed to load image"));
         return;
     }
 
     originalImage = loadedImage;
     adjustedImage = originalImage.copy(); // Make a copy of the original image
-    tempImage = adjustedImage;
+    tempImage = adjustedImage; // Temporary image used for edits
     messageLabel->hide();
     imageLabel->show();
     currentState = EditState::None;
@@ -256,6 +255,24 @@ void ImageAdjuster::applyAdjustments()
     adjustBrightness(0);
     adjustSaturation(0);
     adjustHue(0);
+    if (brightnessLabel->isVisible())
+    {
+        brightnessLabel->hide();
+        brightnessSlider->hide();
+    }
+    if (saturationLabel->isVisible())
+    {
+        saturationLabel->hide();
+        saturationSlider->hide();
+    }
+    if (hueLabel->isVisible())
+    {
+        hueLabel->hide();
+        hueSlider->hide();
+    }
+
+    currentState = EditState::None;
+    toggleApplyButton();
 }
 
 void ImageAdjuster::resizeEvent(QResizeEvent *event)
