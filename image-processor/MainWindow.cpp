@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include <QMenuBar>
 #include <QFileDialog>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
@@ -58,14 +59,22 @@ void MainWindow::open()
         saveAction->setEnabled(true);
         editMenu->setEnabled(true);
     }
+    edited = false;
 }
 
 void MainWindow::closeImage()
 {
+    QMessageBox::StandardButton reply;
+    if(edited)
+    {
+        reply = QMessageBox::question(this,"Are you sure?", "Any changes applied will not be saved.");
+        if(reply != QMessageBox::Yes) return;
+    }
     adjuster->closeImage();
     closeAction->setDisabled(true);
     saveAction->setDisabled(true);
     editMenu->setEnabled(false);
+    edited = false;
 }
 
 void MainWindow::saveImage()
@@ -78,20 +87,33 @@ void MainWindow::saveImage()
 
 void MainWindow::reset()
 {
-    adjuster->resetState();
+    QMessageBox::StandardButton reply;
+    if(edited)
+    {
+        reply = QMessageBox::question(this,"Are you sure?", "The image will be reverted to its original state.");
+        if(reply != QMessageBox::Yes) return;
+        else
+        {
+            adjuster->resetState();
+            edited = false;
+        }
+    }
 }
 
 void MainWindow::toggleBrightness()
 {
+    if(!edited) edited = true;
     adjuster->toggleSlider(EditState::Brightness);
 }
 
 void MainWindow::toggleSaturation()
 {
+    if(!edited) edited = true;
     adjuster->toggleSlider(EditState::Saturation);
 }
 
 void MainWindow::toggleHue()
 {
+    if(!edited) edited = true;
     adjuster->toggleSlider(EditState::Hue);
 }

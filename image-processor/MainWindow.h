@@ -29,6 +29,7 @@ private:
     QAction *saturationAction;
     QAction *hueAction;
     QAction *resetAction;
+    bool edited;
 };
 
 #endif // MAINWINDOW_H
